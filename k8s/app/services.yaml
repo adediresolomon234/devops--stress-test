@@ -1,0 +1,66 @@
+---
+# Python App Service (kept but not used in Ingress — you can keep or remove it)
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-python
+  namespace: assessment
+  labels:
+    app: app-python
+    assessment: "true"
+spec:
+  selector:
+    app: app-python
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000   # Python container port
+  type: ClusterIP
+
+---
+# Node.js App Service (this is the one we want to use)
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-nodejs
+  namespace: assessment
+  labels:
+    app: app-nodejs
+    assessment: "true"
+spec:
+  selector:
+    app: app-nodejs
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3000   # Node.js container port — very important!
+  type: ClusterIP
+
+---
+# Ingress — now routes ALL traffic to Node.js
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: assessment-ingress
+  namespace: assessment
+  labels:
+    assessment: "true"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    # Optional: add if you want basic buffering / timeout tuning (can help under load)
+    # traefik.ingress.kubernetes.io/router.middlewares: assessment-buffering@kubernetescrd
+    # traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
+spec:
+  rules:
+    - host: assessment.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-python     # ← switched from app-python
+                port:
+                  number: 80          # Service port (always 80 here)

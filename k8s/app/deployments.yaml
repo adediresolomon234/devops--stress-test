@@ -1,0 +1,123 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Python Application Deployment (FastAPI + Uvicorn)
+# We keep it at 1 replica because we are switching to Node.js
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-python
+  namespace: assessment
+  labels:
+    app: app-python
+    language: python
+    assessment: "true"
+spec:
+  replicas: 3   # ← scaled horizontally
+  selector:
+    matchLabels:
+      app: app-python
+  template:
+    metadata:
+      labels:
+        app: app-python
+        language: python
+    spec:
+      containers:
+        - name: app-python
+          image: assessment/app-python:latest
+          imagePullPolicy: Never
+          command:
+            - uvicorn
+            - main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --workers
+            - "4"     # ← critical fix
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MONGO_URI
+              value: "mongodb://mongo:27017/assessmentdb"
+            - name: APP_PORT
+              value: "8000"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "300m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 5
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Node.js Application Deployment (Express) ← THIS IS THE ONE WE ARE USING
+# Scaled + tuned for 5000 VUs
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-nodejs
+  namespace: assessment
+  labels:
+    app: app-nodejs
+    language: nodejs
+    assessment: "true"
+spec:
+  replicas: 1         # ← Main fix: high horizontal scaling
+  selector:
+    matchLabels:
+      app: app-nodejs
+  template:
+    metadata:
+      labels:
+        app: app-nodejs
+        language: nodejs
+    spec:
+      containers:
+        - name: app-nodejs
+          image: assessment/app-nodejs:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000
+          env:
+            - name: MONGO_URI
+              value: "mongodb://mongo:27017/assessmentdb"
+            - name: APP_PORT
+              value: "3000"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "200m"
+            limits:
+              memory: "256Mi"     # Lower limits = more pods can be scheduled
+              cpu: "800m"
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 5

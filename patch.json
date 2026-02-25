@@ -1,0 +1,7 @@
+﻿[
+  {"op":"replace","path":"/spec/template/spec/containers/0/command","value":["uvicorn","main:app","--host","0.0.0.0","--port","8000","--workers","8"]},
+  {"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe/timeoutSeconds","value":5},
+  {"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe/failureThreshold","value":10},
+  {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/timeoutSeconds","value":3},
+  {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/failureThreshold","value":5}
+]

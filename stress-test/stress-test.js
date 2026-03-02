@@ -40,33 +40,33 @@ const successCount = new Counter("successful_requests");
 const failCount = new Counter("failed_requests");
 
 // ── Configuration ─────────────────────────────────────────────────────────────
-const BASE_URL = __ENV.BASE_URL || "http://assessment.local";
+const BASE_URL = __ENV.BASE_URL || "http://localhost";
 
 // ── Load Profile ──────────────────────────────────────────────────────────────
+
 export const options = {
   stages: [
-    { duration: "1m", target: 1000 }, // warm-up: ramp to 1k VUs
-    { duration: "2m", target: 2000 }, // ramp to 2k VUs
-    { duration: "3m", target: 5000 }, // ramp to 5k VUs (peak)
-    { duration: "5m", target: 5000 }, // sustain 5k VUs
-    { duration: "2m", target: 0 }, // ramp down
+    { duration: "1m", target: 1000 },
+    { duration: "2m", target: 2000 },
+    { duration: "3m", target: 5000 },
+    { duration: "5m", target: 5000 },
+    { duration: "2m", target: 0 },
   ],
 
   thresholds: {
-    // ── Pass/Fail criteria ───────────────────────────────────────────────
     http_req_duration: ["p(95)<2000", "p(99)<5000"],
-    error_rate: ["rate<0.01"], // <1% errors
+    error_rate: ["rate<0.01"],
     http_req_failed: ["rate<0.01"],
-  },
-
-  // Graceful stop: wait up to 30 s for in-flight requests before killing VUs.
-  gracefulStop: "30s",
+  }
 };
 
 // ── Scenario ──────────────────────────────────────────────────────────────────
-export default function() {
+export default function () {
   const params = {
-    headers: { Accept: "application/json" },
+    headers: {
+      Accept: "application/json",
+      Host: "assessment.local", // ← required for ingress routing
+    },
     timeout: "10s",
   };
 
@@ -117,7 +117,9 @@ export function setup() {
   console.log("═══════════════════════════════════════════════════");
 
   // Verify the target is up before unleashing load
-  const res = http.get(`${BASE_URL}/readyz`);
+  const res = http.get(`${BASE_URL}/readyz`, {
+    headers: { Host: "assessment.local" },
+  });
   if (res.status !== 200) {
     throw new Error(`Target not ready (status=${res.status}). Aborting.`);
   }
